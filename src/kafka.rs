@@ -9,15 +9,17 @@ use rdkafka::{
 };
 use tokio::sync::broadcast::Sender;
 
-pub async fn run_consumer(topic: &str, tx: Sender<KafkaEvent>) {
+pub async fn run_consumer(kafka_brokers: String, topic: String, tx: Sender<KafkaEvent>) {
+    let bootstrap_servers = kafka_brokers.to_string();
+
     let consumer: StreamConsumer = ClientConfig::new()
-        .set("bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092")
+        .set("bootstrap.servers", &bootstrap_servers)
         .set("group.id", format!("streaming-api-{}", topic))
         .create()
         .expect("Kafka: failed to create consumer");
 
     consumer
-        .subscribe(&[topic])
+        .subscribe(&[&topic])
         .expect(&format!("Kafka: failed to subscribe to topic {}", topic));
 
     println!("Kafka consumer started");

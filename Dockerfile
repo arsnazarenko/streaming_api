@@ -15,4 +15,4 @@ RUN apk add --no-cache ca-certificates
 COPY --from=builder /streaming-api/target/x86_64-unknown-linux-musl/release/streaming_api /usr/local/bin/streaming_api
 
 EXPOSE 8181
-CMD streaming_api
+CMD streaming_api --kafka-brokers "$KAFKA_ADDRESS" --ws-address "$WS_ADDRESS"

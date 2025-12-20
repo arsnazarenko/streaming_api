@@ -1,3 +1,4 @@
+mod cli;
 mod kafka;
 mod models;
 
@@ -26,18 +27,26 @@ const TOPICS: &[&str] = &[
 
 #[tokio::main]
 async fn main() {
+    let args = cli::parse();
+    let kafka_brokers = args.kafka_brokers;
+    let websocket_addr = args.ws_address;
+
     let (tx, _) = broadcast::channel::<KafkaEvent>(100);
-    // ---- Kafka task ----
     let mut kafka_tasks = vec![];
     for topic in TOPICS {
-        let kafka_handle = tokio::spawn(kafka::run_consumer(*topic, tx.clone()));
+        let kafka_handle = tokio::spawn(kafka::run_consumer(
+            kafka_brokers.clone(),
+            topic.to_string(),
+            tx.clone(),
+        ));
         kafka_tasks.push(kafka_handle);
     }
 
-    // ---- HTTP / WS ----
     let app = Router::new().route("/ws", get(ws_handler)).with_state(tx);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8181));
+    let addr: SocketAddr = websocket_addr
+        .parse()
+        .expect("webdocket address parsing error");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
