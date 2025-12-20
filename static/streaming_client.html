@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DC Streaming Data Analysis - Debug Client</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .topic-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .topic-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .topic-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+        }
+        .topic-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .message-list {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            border-radius: 4px;
+            background-color: #fafafa;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .message-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .message-timestamp {
+            font-size: 0.8em;
+            color: #6c757d;
+        }
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .connect-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .disconnect-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .disconnect-btn:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-connected {
+            background-color: #28a745;
+        }
+        .status-disconnected {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>DC Streaming Data Analysis - Debug Client</h1>
+        
+        <div class="controls">
+            <button id="connectBtn" class="connect-btn">Connect All Topics</button>
+            <button id="disconnectBtn" class="disconnect-btn" disabled>Disconnect</button>
+        </div>
+
+        <div id="statusInfo"></div>
+
+        <!-- Alerts Section -->
+        <div class="topic-section">
+            <div class="topic-header">
+                <div class="topic-title">Alerts (dc_alerts)</div>
+                <div class="topic-status disconnected" id="alertsStatus">Disconnected</div>
+            </div>
+            <div class="message-list" id="alertsList"></div>
+        </div>
+
+        <!-- Host Status Section -->
+        <div class="topic-section">
+            <div class="topic-header">
+                <div class="topic-title">Host Status (dc_host_status)</div>
+                <div class="topic-status disconnected" id="hostStatusStatus">Disconnected</div>
+            </div>
+            <div class="message-list" id="hostStatusList"></div>
+        </div>
+
+        <!-- SLA Compliance Section -->
+        <div class="topic-section">
+            <div class="topic-header">
+                <div class="topic-title">SLA Compliance (dc_sla_compliance)</div>
+                <div class="topic-status disconnected" id="slaStatus">Disconnected</div>
+            </div>
+            <div class="message-list" id="slaList"></div>
+        </div>
+
+        <!-- Zone Load Section -->
+        <div class="topic-section">
+            <div class="topic-header">
+                <div class="topic-title">Zone Load (dc_zone_load)</div>
+                <div class="topic-status disconnected" id="zoneLoadStatus">Disconnected</div>
+            </div>
+            <div class="message-list" id="zoneLoadList"></div>
+        </div>
+
+        <!-- CPU Trend Section -->
+        <div class="topic-section">
+            <div class="topic-header">
+                <div class="topic-title">CPU Trend (dc_cpu_trend)</div>
+                <div class="topic-status disconnected" id="cpuTrendStatus">Disconnected</div>
+            </div>
+            <div class="message-list" id="cpuTrendList"></div>
+        </div>
+    </div>
+
+    <script>
+        const topics = [
+            { name: 'dc_alerts', element: 'alertsList', statusElement: 'alertsStatus' },
+            { name: 'dc_host_status', element: 'hostStatusList', statusElement: 'hostStatusStatus' },
+            { name: 'dc_sla_compliance', element: 'slaList', statusElement: 'slaStatus' },
+            { name: 'dc_zone_load', element: 'zoneLoadList', statusElement: 'zoneLoadStatus' },
+            { name: 'dc_cpu_trend', element: 'cpuTrendList', statusElement: 'cpuTrendStatus' }
+        ];
+
+        const connections = {};
+        const wsUrl = 'ws://localhost:8181/ws';
+        
+        document.getElementById('connectBtn').addEventListener('click', connectAllTopics);
+        document.getElementById('disconnectBtn').addEventListener('click', disconnectAllTopics);
+
+        function connectAllTopics() {
+            document.getElementById('connectBtn').disabled = true;
+            document.getElementById('disconnectBtn').disabled = false;
+            
+            topics.forEach(topic => {
+                connectTopic(topic.name, topic.element, topic.statusElement);
+            });
+        }
+
+        function disconnectAllTopics() {
+            Object.keys(connections).forEach(topicName => {
+                if (connections[topicName]) {
+                    connections[topicName].close();
+                }
+            });
+            // Clear the connections object
+            for (const key in connections) {
+                delete connections[key];
+            }
+            
+            document.getElementById('connectBtn').disabled = false;
+            document.getElementById('disconnectBtn').disabled = true;
+            
+            topics.forEach(topic => {
+                updateStatus(topic.statusElement, 'Disconnected', 'disconnected');
+            });
+        }
+
+        function connectTopic(topicName, elementId, statusElementId) {
+            const ws = new WebSocket(`${wsUrl}?topic=${topicName}`);
+            
+            connections[topicName] = ws;
+            
+            updateStatus(statusElementId, 'Connecting...', 'disconnected');
+            
+            ws.onopen = function(event) {
+                console.log(`Connected to ${topicName}`);
+                updateStatus(statusElementId, 'Connected', 'connected');
+            };
+
+            ws.onclose = function(event) {
+                console.log(`Disconnected from ${topicName}`);
+                updateStatus(statusElementId, 'Disconnected', 'disconnected');
+                // Attempt to reconnect after delay
+                setTimeout(() => {
+                    if (connections[topicName]) {
+                        connectTopic(topicName, elementId, statusElementId);
+                    }
+                }, 3000);
+            };
+
+            ws.onerror = function(error) {
+                console.error(`WebSocket error for ${topicName}:`, error);
+                updateStatus(statusElementId, 'Error', 'disconnected');
+            };
+
+            ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    const messageItem = document.createElement('div');
+                    messageItem.className = 'message-item';
+                    
+                    // Parse the data payload
+                    const payload = JSON.parse(data.data);
+                    
+                    // Format timestamp as human-readable time
+                    const timestamp = new Date(payload.timestamp || data.timestamp).toLocaleString();
+                    const formattedTimestamp = `<span class="message-timestamp">[${timestamp}]</span>`;
+                    
+                    // Format message based on type with integer values
+                    let formattedMessage = '';
+                    if (data.type === 'dc_alerts') {
+                        formattedMessage = `
+Alert ID: ${payload.alertId}
+Host: ${payload.hostId} (Zone: ${payload.zone})
+Metric: ${payload.metric}
+Value: ${Math.round(payload.value)}
+Threshold: ${Math.round(payload.threshold)}
+Message: ${payload.message}
+`;
+                    } else if (data.type === 'dc_host_status') {
+                        formattedMessage = `
+Host: ${payload.hostId}
+Zone: ${payload.zone}
+Metric: ${payload.metric}
+Average Value: ${Math.round(payload.averageValue)}
+`;
+                    } else if (data.type === 'dc_sla_compliance') {
+                        formattedMessage = `
+Host: ${payload.hostId}
+Metric: ${payload.metric}
+Violation Percentage: ${Math.round(payload.violationPercentage * 100) / 100}
+`;
+                    } else if (data.type === 'dc_zone_load') {
+                        formattedMessage = `
+Zone: ${payload.zone}
+Total CPU Load: ${Math.round(payload.totalCpuLoad)}
+`;
+                    } else if (data.type === 'dc_cpu_trend') {
+                        formattedMessage = `
+Host: ${payload.hostId}
+Total CPU Usage: ${Math.round(payload.totalCpuUsage * 100) / 100}%
+`;
+                    } else {
+                        // Default fallback for unknown types
+                        formattedMessage = JSON.stringify(payload, null, 2);
+                    }
+                    
+                    messageItem.innerHTML = `${formattedTimestamp}<br><pre>${formattedMessage}</pre>`;
+                    
+                    document.getElementById(elementId).prepend(messageItem);
+                    
+                    // Auto-scroll to top
+                    document.getElementById(elementId).scrollTop = 0;
+                } catch (error) {
+                    console.error('Error parsing message:', error);
+                    const messageItem = document.createElement('div');
+                    messageItem.className = 'message-item';
+                    messageItem.innerHTML = `<span class="message-timestamp">[${new Date().toLocaleTimeString()}]</span><br><pre>Error parsing message: ${event.data}</pre>`;
+                    document.getElementById(elementId).prepend(messageItem);
+                }
+            };
+        }
+
+        function updateStatus(elementId, status, className) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = status;
+                element.className = `topic-status ${className}`;
+            }
+        }
+    </script>
+</body>
+</html>
