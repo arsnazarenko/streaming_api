@@ -1,6 +1,6 @@
 use clap::Parser;
 
-/// Command line arguments for the streaming API
+/// Rust implementation of streaming API.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
