@@ -13,8 +13,6 @@ pub async fn run_consumer(topic: &str, tx: Sender<KafkaEvent>) {
     let consumer: StreamConsumer = ClientConfig::new()
         .set("bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092")
         .set("group.id", format!("streaming-api-{}", topic))
-        .set("enable.auto.commit", "true")
-        .set("auto.offset.reset", "latest")
         .create()
         .expect("Kafka: failed to create consumer");
 
@@ -46,7 +44,8 @@ pub async fn run_consumer(topic: &str, tx: Sender<KafkaEvent>) {
             Err(KafkaError::PartitionEOF(_)) => {}
             Err(KafkaError::MessageConsumption(_)) => {
                 println!("Waiting for topic to be created...");
-                tokio::time::sleep(Duration::from_secs(2)).await;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
             }
             // любая другая ошибка — падение
             Err(e) => panic!("Kafka runtime error: {}", e),
