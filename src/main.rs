@@ -27,7 +27,6 @@ const TOPICS: &[&str] = &[
 #[tokio::main]
 async fn main() {
     let (tx, _) = broadcast::channel::<KafkaEvent>(100);
-
     // ---- Kafka task ----
     let mut kafka_tasks = vec![];
     for topic in TOPICS {
@@ -38,7 +37,8 @@ async fn main() {
     // ---- HTTP / WS ----
     let app = Router::new().route("/ws", get(ws_handler)).with_state(tx);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8181));
+
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
 
     println!("Server listening on {}", addr);
