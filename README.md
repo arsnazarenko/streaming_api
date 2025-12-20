@@ -1,11 +1,16 @@
 # STREAMING_API
 Usage:
-```bash
 
-  --kafka-brokers <KAFKA_BROKERS>
-  --ws-address <WS_ADDRESS>
+```bash
+Rust implementation of streaming API
 
 Usage: streaming_api --kafka-brokers <KAFKA_BROKERS> --ws-address <WS_ADDRESS>
+
+Options:
+  -k, --kafka-brokers <KAFKA_BROKERS>  Kafka brokers addresses
+  -w, --ws-address <WS_ADDRESS>        WebSocket server address
+  -h, --help                           Print help
+  -V, --version                        Print version
 ```
 
 # STREAMING_CLIENT
