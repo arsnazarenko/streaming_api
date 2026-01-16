@@ -42,14 +42,12 @@ pub async fn run_consumer(kafka_brokers: String, topic: String, tx: Sender<Kafka
                 let _ = tx.send(event);
             }
 
-            // это НОРМАЛЬНО при partitions=3
             Err(KafkaError::PartitionEOF(_)) => {}
             Err(KafkaError::MessageConsumption(_)) => {
                 println!("Waiting for topic to be created...");
                 tokio::time::sleep(Duration::from_secs(1)).await;
                 continue;
             }
-            // любая другая ошибка — падение
             Err(e) => panic!("Kafka runtime error: {}", e),
         }
     }
